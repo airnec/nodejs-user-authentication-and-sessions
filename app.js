@@ -1,3 +1,5 @@
+const { ObjectId } = require('mongodb');
+
 const path = require('path');
 
 const express = require('express');
@@ -29,8 +31,31 @@ app.use(
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
+    cookie: {
+      maxAge: 2 * 24 * 60 * 60 * 1000,
+    },
   })
 );
+
+app.use(async function (req, res, next) {
+  const user = req.session.user;
+  const isAuth = req.session.isAuthenticated;
+
+  if (!user || !isAuth) {
+    return next();
+  }
+
+  const userDoc = await db
+    .getDb()
+    .collection('users')
+    .findOne({ _id: ObjectId.createFromHexString(req.session.user.id) });
+  const isAdmin = userDoc.isAdmin;
+
+  res.locals.isAuth = isAuth;
+  res.locals.isAdmin = isAdmin;
+
+  next();
+});
 
 app.use(demoRoutes);
 
