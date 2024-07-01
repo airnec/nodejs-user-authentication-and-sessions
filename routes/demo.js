@@ -1,7 +1,10 @@
+const { ObjectId } = require('mongodb');
+
 const express = require('express');
 const bcrypt = require('bcryptjs');
 
 const db = require('../data/database');
+
 
 const router = express.Router();
 
@@ -17,7 +20,7 @@ router.get('/signup', function (req, res) {
       hasError: false,
       email: '',
       confirmEmail: '',
-      password: ''
+      password: '',
     };
   }
 
@@ -106,19 +109,40 @@ router.post('/login', async function (req, res) {
     return res.redirect('/login');
   }
 
-  req.session.user = { id: existingUser._id, email: existingUser.email };
+  req.session.user = {
+    id: existingUser._id.toString(),
+    email: existingUser.email,
+  };
   req.session.isAuthenticated = true;
   req.session.save(function () {
-    res.redirect('/admin');
+    res.redirect('/profile');
   });
 });
 
-router.get('/admin', function (req, res) {
+router.get('/admin', async function (req, res) {
   if (!req.session.isAuthenticated) {
     // if (!req.session.user)
     return res.status(401).render('401');
   }
+
+  const user = await db
+    .getDb()
+    .collection('users')
+    .findOne({ _id: ObjectId.createFromHexString(req.session.user.id) });
+
+  if (!user || !user.isAdmin) {
+    return res.status(403).render('403');
+  }
+
   res.render('admin');
+});
+
+router.get('/profile', function (req, res) {
+  if (!req.session.isAuthenticated) {
+    // if (!req.session.user)
+    return res.status(401).render('401');
+  }
+  res.render('profile');
 });
 
 router.post('/logout', function (req, res) {
